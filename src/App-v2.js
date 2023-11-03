@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const url = "https://www.omdbapi.com/?apikey=4a3b711b";
 
@@ -55,17 +55,43 @@ const average = (arr) =>
 export default function App() {
   const [movies, setMovies] = useState(tempMovieData);
   const [watched, setWatched] = useState(tempWatchedData);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const getMovies = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(url + `&s=${query}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        const data = await res.json();
+        setMovies(data.Search);
+        setIsLoading(false);
+      } catch (error) {
+        setError(error);
+        setIsLoading(false);
+      }
+    };
+    if (query) {
+      getMovies();
+    }
+  }, [query]);
 
   return (
     <>
       <NavBar>
-        <Search />
+        <Search query={query} setQuery={setQuery} />
         <NumResults movies={movies} />
       </NavBar>
 
       <Main>
         <Box>
-          <MovieList movies={movies} />
+          {error && <p>Error: {error.message}</p>}
+          {isLoading ? <h1>Loading...</h1> : <MovieList movies={movies} />}
         </Box>
 
         <Box>
@@ -95,9 +121,7 @@ function Logo() {
   );
 }
 
-function Search() {
-  const [query, setQuery] = useState("");
-
+function Search({ query, setQuery }) {
   return (
     <input
       className="search"
@@ -112,7 +136,7 @@ function Search() {
 function NumResults({ movies }) {
   return (
     <p className="num-results">
-      Found <strong>{movies.length}</strong> results
+      Found <strong>{movies ? movies.length : 0}</strong> results
     </p>
   );
 }
