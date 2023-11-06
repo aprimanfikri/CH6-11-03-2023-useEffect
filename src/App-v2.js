@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const url = "https://www.omdbapi.com/?apikey=4a3b711b";
+const baseUrl = "https://www.omdbapi.com/?apikey=4a3b711b";
 
 const tempMovieData = [
   {
@@ -56,42 +56,59 @@ export default function App() {
   const [movies, setMovies] = useState(tempMovieData);
   const [watched, setWatched] = useState(tempWatchedData);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [type, setType] = useState("series");
 
   useEffect(() => {
     const getMovies = async () => {
-      setIsLoading(true);
-      setError(null);
       try {
-        const res = await fetch(url + `&s=${query}`);
-        if (!res.ok) {
-          throw new Error(`HTTP error! Status: ${res.status}`);
-        }
+        setIsLoading(true);
+        setError("");
+        const res = await fetch(baseUrl + "&s=" + query + "&type=" + type);
         const data = await res.json();
+        if (query.length === 0) {
+          throw new Error("Please enter a search term");
+        }
+        if (query.length < 3) {
+          throw new Error("Please enter at least 3 characters");
+        }
+        if (data.Response === "False") {
+          throw new Error(data.Error);
+        }
         setMovies(data.Search);
+      } catch (err) {
         setIsLoading(false);
-      } catch (error) {
-        setError(error);
+        setError(err.message);
+      } finally {
         setIsLoading(false);
       }
     };
-    if (query) {
-      getMovies();
-    }
-  }, [query]);
+    getMovies();
+  }, [query, type]);
+
+  function handleChangeTypeMovie(type) {
+    setType(type);
+  }
 
   return (
     <>
       <NavBar>
         <Search query={query} setQuery={setQuery} />
+        <select
+          className="select"
+          onChange={(e) => handleChangeTypeMovie(e.target.value)}>
+          <option value="movie">Movie</option>
+          <option value="series">Series</option>
+        </select>
         <NumResults movies={movies} />
       </NavBar>
 
       <Main>
         <Box>
-          {error && <p>Error: {error.message}</p>}
-          {isLoading ? <h1>Loading...</h1> : <MovieList movies={movies} />}
+          {isLoading && <Loader />}
+          {!isLoading && !error && <MovieList movies={movies} />}
+          {error && <ErrorMessage message={error} />}
         </Box>
 
         <Box>
@@ -101,6 +118,14 @@ export default function App() {
       </Main>
     </>
   );
+}
+
+function Loader() {
+  return <h1>Loading...</h1>;
+}
+
+function ErrorMessage({ message }) {
+  return <span className="error">Error : {message}</span>;
 }
 
 function NavBar({ children }) {
